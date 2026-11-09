@@ -1,7 +1,9 @@
-
 function HomePage() {
   return (
-    <h1>VECTIS - Football Boots</h1>
+    <div>
+        <h1>VECTIS - Football Boots</h1>
+    </div>
+    
   )
 }
 

@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     "users",
     "products",
     "catalog",
-    "common",
     "cloudinary",
 ]
 
