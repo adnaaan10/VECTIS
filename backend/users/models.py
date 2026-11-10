@@ -66,6 +66,28 @@ class User(AbstractBaseUser,PermissionsMixin):
         return self.email
 
 
+class EmailOtp(models.Model):
+
+    class Purpose(models.TextChoices):
+        EMAIL_VERIFY="EMAIL_VERIFY","email_verify"
+        PASSWORD_RESET="PASSWORD_RESET","password_reset"
+
+    user=models.ForeignKey(User,on_delete=models.CASCADE,related_name="emailotps")
+    otp_hash=models.CharField(max_length=255)
+    purpose=models.CharField(
+        choices=Purpose.choices,
+        default=Purpose.EMAIL_VERIFY,
+        max_length=20
+    )
+    expires_at=models.DateTimeField()
+    attempts=models.PositiveIntegerField(default=0)
+    resend_count=models.PositiveIntegerField(default=0)
+    last_sent_at=models.DateTimeField(null=True,blank=True)
+    is_used=models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+
+
+
 
 
     
