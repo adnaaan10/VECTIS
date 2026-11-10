@@ -72,3 +72,51 @@ def verify_otp(user, submitted_otp, purpose):
         otp_record.save(update_fields=["is_used"])
 
         return True, "OTP verified successfully."
+
+
+def resend_otp(user, purpose):
+
+    with transaction.atomic():
+
+        otp_record = (
+            EmailOtp.objects
+            .select_for_update()
+            .filter(
+                user=user,
+                purpose=purpose
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        current_time = timezone.now()
+
+        if not otp_record or otp_record.is_used:
+            raw_otp, otp_record = create_otp_record(user, purpose)
+            return True, raw_otp, "OTP sent successfully."
+
+        if otp_record.resend_count >= 3:
+            return False, None, "Maximum resend limit reached. Please try again later."
+
+        if otp_record.last_sent_at:
+            time_elapsed = (current_time - otp_record.last_sent_at).total_seconds()
+            if time_elapsed < 60:
+                seconds_remaining = int(60 - time_elapsed)
+                return False, None, f"Please wait {seconds_remaining} seconds before requesting a new OTP."
+
+        raw_otp, hashed_otp = generate_otp()
+
+        otp_record.otp_hash = hashed_otp
+        otp_record.expires_at = current_time + timedelta(minutes=5)
+        otp_record.attempts = 0
+        otp_record.resend_count += 1
+        otp_record.last_sent_at = current_time
+        otp_record.save(update_fields=[
+            "otp_hash",
+            "expires_at",
+            "attempts",
+            "resend_count",
+            "last_sent_at"
+        ])
+
+        return True, raw_otp, "OTP resent successfully."

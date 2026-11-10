@@ -65,4 +65,15 @@ class VerifyOTPSerializer(serializers.Serializer):
             )
 
         return value
-        
+
+
+class ResendOTPSerializer(serializers.Serializer):
+
+    email = serializers.EmailField(
+        required=True,
+        error_messages={
+            "required": "Email is required.",
+            "blank": "Email cannot be empty.",
+            "invalid": "Enter a valid email address."
+        }
+    )
