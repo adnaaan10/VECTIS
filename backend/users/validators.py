@@ -8,6 +8,11 @@ class PasswordStrengthValidator:
 
         errors=[]
 
+        if not password.strip():
+            errors.append(
+                "Password cannot contain only whitespace."
+            )
+
         if not re.search(r"[A-Z]",password):
             errors.append("At least one uppercaseletter is required")
 

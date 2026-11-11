@@ -12,7 +12,7 @@ def generate_otp():
     return raw_otp, hashed_otp
 
 
-def create_otp_record(user, purpose):
+def create_otp_record(user,):
     raw_otp, hashed_otp = generate_otp()
 
     current_time = timezone.now()
@@ -20,7 +20,6 @@ def create_otp_record(user, purpose):
     otp_record = EmailOtp.objects.create(
         user=user,
         otp_hash=hashed_otp,
-        purpose=purpose,
         expires_at=current_time + timedelta(minutes=5),
         attempts=0,
         resend_count=0,
@@ -30,7 +29,7 @@ def create_otp_record(user, purpose):
 
     return raw_otp, otp_record
 
-def verify_otp(user, submitted_otp, purpose):
+def verify_otp(user, submitted_otp,):
 
     with transaction.atomic():
 
@@ -39,7 +38,6 @@ def verify_otp(user, submitted_otp, purpose):
             .select_for_update()
             .filter(
                 user=user,
-                purpose=purpose
             )
             .order_by("-created_at")
             .first()
@@ -74,7 +72,7 @@ def verify_otp(user, submitted_otp, purpose):
         return True, "OTP verified successfully."
 
 
-def resend_otp(user, purpose):
+def resend_otp(user,):
 
     with transaction.atomic():
 
@@ -83,7 +81,6 @@ def resend_otp(user, purpose):
             .select_for_update()
             .filter(
                 user=user,
-                purpose=purpose
             )
             .order_by("-created_at")
             .first()
@@ -92,7 +89,7 @@ def resend_otp(user, purpose):
         current_time = timezone.now()
 
         if not otp_record or otp_record.is_used:
-            raw_otp, otp_record = create_otp_record(user, purpose)
+            raw_otp, otp_record = create_otp_record(user,)
             return True, raw_otp, "OTP sent successfully."
 
         if otp_record.resend_count >= 3:
