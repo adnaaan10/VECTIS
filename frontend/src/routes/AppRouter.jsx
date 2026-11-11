@@ -6,6 +6,8 @@ import UserLayout from "../layouts/UserLayout";
 import LoginPage from "../pages/auth/LoginPage";
 import HomePage from "../pages/user/HomePage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
+import RegisterPage from "../pages/auth/RegisterPage";
+import VerifyEmail from "../pages/auth/VerifyEmail";
 
 
 function AppRouter(){
@@ -13,6 +15,8 @@ function AppRouter(){
         <BrowserRouter>
             <Routes>
                 <Route path="/login" element={<LoginPage/>}/>
+                <Route path="/register" element={<RegisterPage/>}/>
+                <Route path="/verify-email" element={<VerifyEmail/>}/>
 
                 <Route element={<UserLayout/>}>
                     <Route path="/" element={<HomePage/>}/>
