@@ -1,18 +1,15 @@
-import {Outlet} from "react-router-dom"
+import { Outlet } from "react-router-dom";
+import Navbar from "../components/common/Navbar";
+import Footer from "../components/common/Footer";
 
-function UserLayout(){
-    return(
-        <div>
-            <header>
-                <h2>VECTIS</h2>
-                <nav> User Navigation bar</nav>
-            </header>
-            <main>
-                <Outlet/>
-            </main>
-            <footer>VECTIS © 2026</footer>
-        </div>
-    )
-}
+const UserLayout = () => (
+  <div className="flex min-h-screen flex-col bg-white">
+    <Navbar />
+    <main className="flex-1">
+      <Outlet />
+    </main>
+    <Footer />
+  </div>
+);
 
-export default UserLayout
+export default UserLayout;

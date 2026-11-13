@@ -31,7 +31,6 @@ const EmailInput = ({
         }`}
       />
       
-      {/* Display error message below the input if it exists */}
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );

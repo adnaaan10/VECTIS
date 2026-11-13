@@ -88,18 +88,19 @@ def resend_otp(user,):
 
         current_time = timezone.now()
 
-        if not otp_record or otp_record.is_used:
-            raw_otp, otp_record = create_otp_record(user,)
-            return True, raw_otp, "OTP sent successfully."
+        if (not otp_record or otp_record.is_used 
+            or otp_record.expires_at <= current_time):
+            raw_otp, otp_record = create_otp_record(user)
+            return True, raw_otp, "OTP sent successfully.",60
 
         if otp_record.resend_count >= 3:
-            return False, None, "Maximum resend limit reached. Please try again later."
+            return False, None, "Maximum resend limit reached. Please try again later.",0
 
         if otp_record.last_sent_at:
             time_elapsed = (current_time - otp_record.last_sent_at).total_seconds()
             if time_elapsed < 60:
                 seconds_remaining = int(60 - time_elapsed)
-                return False, None, f"Please wait {seconds_remaining} seconds before requesting a new OTP."
+                return False, None, "Please wait before requesting another OTP.", seconds_remaining
 
         raw_otp, hashed_otp = generate_otp()
 
@@ -116,4 +117,4 @@ def resend_otp(user,):
             "last_sent_at"
         ])
 
-        return True, raw_otp, "OTP resent successfully."
+        return True, raw_otp, "OTP resent successfully. Please check your email.",60

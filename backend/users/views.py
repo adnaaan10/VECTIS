@@ -1,27 +1,35 @@
 from django.db import transaction
 
 from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
+from django.conf import settings
 
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import CustomTokenRefreshSerializer
 
-from .serializers import UserSerializer, VerifyOTPSerializer, ResendOTPSerializer,LoginSerializer,UserSummarySerializer
+from .serializers import UserSerializer, VerifyOTPSerializer, ResendOTPSerializer,LoginSerializer,UserProfileSerializer
 from .models import EmailOtp, User
 from .services.otp_service import create_otp_record, verify_otp, resend_otp
 from .services.email_service import send_otp_email, send_reset_password_mail
 from .services.password_reset_service import generate_password_reset_link
 
-from .serializers import ForgotPasswordSerializer
+from .serializers import ForgotPasswordSerializer,ResetPasswordSerializer
 
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny
 
-from .serializers import ResetPasswordSerializer
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 
+@method_decorator(csrf_protect, name="dispatch")
 class RegisterUserView(CreateAPIView):
 
     serializer_class = UserSerializer
@@ -38,7 +46,6 @@ class RegisterUserView(CreateAPIView):
 
         raw_otp, otp_record = create_otp_record(
             user,
-            EmailOtp.Pur
         )
 
         send_otp_email(
@@ -54,7 +61,7 @@ class RegisterUserView(CreateAPIView):
             status=status.HTTP_201_CREATED
         )
 
-
+@method_decorator(csrf_protect, name="dispatch")
 class VerifyEmailView(APIView):
 
     permission_classes = [AllowAny]
@@ -102,7 +109,7 @@ class VerifyEmailView(APIView):
             status=status.HTTP_200_OK
         )
 
-
+@method_decorator(csrf_protect, name="dispatch")
 class ResendOTPView(APIView):
 
     permission_classes = [AllowAny]
@@ -130,13 +137,15 @@ class ResendOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        is_sent, raw_otp, message = resend_otp(
+        is_sent, raw_otp, message,remaining_seconds = resend_otp(
             user,
         )
 
         if not is_sent:
             return Response(
-                {"message": message},
+                {"message": message,
+                 "remaining_seconds":remaining_seconds,
+                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -146,13 +155,15 @@ class ResendOTPView(APIView):
         )
 
         return Response(
-            {"message": "OTP resent successfully. Please check your email."},
+            {"message": message,
+             "remaining_seconds":remaining_seconds,
+             },
             status=status.HTTP_200_OK
         )
 
-from .serializers import LoginSerializer
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
 
     permission_classes = [AllowAny]
@@ -198,9 +209,6 @@ class LoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-       
-        user.last_login = timezone.now()
-        user.save(update_fields=["last_login"])
 
         refresh = RefreshToken.for_user(user)
 
@@ -209,24 +217,101 @@ class LoginView(APIView):
         refresh["first_name"] = user.first_name
         refresh["last_name"] = user.last_name
 
-        user_data = UserSummarySerializer(user).data
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
 
-        return Response(
+        user_data = UserProfileSerializer(user).data
+
+        response = Response(
             {
                 "message": "Login successful.",
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
                 "user": user_data
             },
             status=status.HTTP_200_OK
         )
 
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            max_age=int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite="Lax",
+            path="/"
+        )
 
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite="Lax",
+            path="/",
+        )
+
+        return response
+
+
+@ensure_csrf_cookie
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def csrf_token_view(request):
+
+    csrf_token = get_token(request)
+
+    return Response({
+        "csrfToken": csrf_token
+    })
+
+
+
+
+@method_decorator(csrf_protect, name="dispatch")
 class CustomTokenRefreshView(TokenRefreshView):
 
     serializer_class = CustomTokenRefreshSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        if not refresh_token:
+            return Response(
+                {"message": "Refresh token is missing. Please log in again."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        serializer = self.get_serializer(
+            data={"refresh": refresh_token}
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        access_token = serializer.validated_data["access"]
+
+        response = Response(
+            {"message": "Token refreshed successfully."},
+            status=status.HTTP_200_OK
+        )
+
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            max_age=int(
+                settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()
+            ),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite="Lax",
+            path="/",
+        )
+
+        return response
+
 
 
 
@@ -292,4 +377,54 @@ class ResetPasswordView(APIView):
         )
 
 
+@method_decorator(csrf_protect, name="dispatch")
+class LogoutView(APIView):
 
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        if refresh_token:
+            try:
+                refresh = RefreshToken(refresh_token)
+                refresh.blacklist()
+
+            except TokenError:
+                pass
+
+        response = Response(
+            {"message": "Logout successful."},
+            status=status.HTTP_200_OK
+        )
+
+        response.delete_cookie(
+            "access_token",
+            path="/",
+            samesite="Lax"
+        )
+
+        response.delete_cookie(
+            "refresh_token",
+            path="/",
+            samesite="Lax"
+        )
+
+        return response
+
+
+
+class CurrentUserView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        serializer = UserProfileSerializer(request.user)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )

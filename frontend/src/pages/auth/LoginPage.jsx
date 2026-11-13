@@ -1,24 +1,95 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link,useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import PasswordInput from "../../components/common/PasswordInput";
 import authBgImage from "../../assets/images/auth-bg.jpeg";
+import EmailInput from "../../components/common/EmailInput";
+import { useAuth } from "../../context/AuthContext";
+import { toast } from "react-toastify";
+import { ArrowRight } from "lucide-react";
+import Button from "../../components/common/Button";
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+    const {login} = useAuth();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Login submitted:", formData);
-    // Call your auth service here
-  };
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+    });
+
+    
+    const navigate = useNavigate()
+    const [loading,setLoading] = useState(false);
+    const [errors,setErrors] = useState({});
+    const [unverifiedEmail, setUnverifiedEmail] = useState(null);
+    
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+        setUnverifiedEmail(null);
+        setErrors({});
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrors({});
+        setUnverifiedEmail(null);
+
+        try{
+            const payload ={
+                "email":formData.email.trim().toLowerCase(),
+                "password":formData.password
+            }
+
+            const response = await login(payload);
+
+            toast.success("Logined Successful",{
+                    position: "top-right",
+                    autoClose: 4000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                }
+            )
+
+            console.log("Login submitted:", response);
+
+            if (response.user.role === "ADMIN") {
+                navigate("/admin/dashboard", { replace: true });
+            } else {
+                navigate("/", { replace: true });
+            }
+
+        }catch (error) {
+    console.log("FULL ERROR:", error);
+    console.log("STATUS:", error.response?.status);
+    console.log("RESPONSE DATA:", error.response?.data);
+    console.log(
+        "EMAIL VERIFIED:",
+        error.response?.data?.is_email_verified
+    );
+
+    const errorData = error.response?.data;
+
+    if (errorData?.is_email_verified === false) {
+        console.log("UNVERIFIED EMAIL DETECTED");
+
+        setUnverifiedEmail(errorData.email);
+        toast.error(errorData.message);
+
+        return;
+    }
+
+    toast.error(
+        errorData?.message || "Login failed. Please check your credentials."
+    );
+} finally {
+  setLoading(false);
+          }   
+    }
 
   return (
     <AuthLayout
@@ -31,25 +102,24 @@ const Login = () => {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Email */}
         <div className="mb-4">
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-            EMAIL ADDRESS <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter your email address"
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-sm text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-          />
+            <EmailInput
+                label="EMAIL ADDRESS"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email address"
+                error={errors.email}
+            />
         </div>
 
         {/* Password */}
         <PasswordInput
           label="PASSWORD"
           name="password"
+          value={formData.password}
+          onChange={handleChange}
           placeholder="Enter your password"
+          error={errors.password}
         />
 
         {/* Forgot Password */}
@@ -63,26 +133,45 @@ const Login = () => {
         </div>
 
         {/* Submit Button */}
-        <button
-          type="submit"
-          className="w-full bg-black text-white py-3.5 text-sm font-semibold uppercase tracking-wider hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+        <Button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 uppercase tracking-wider rounded-sm flex items-center justify-center gap-2"
         >
-          LOG IN
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M14 5l7 7m0 0l-7 7m7-7H3"
-            />
-          </svg>
-        </button>
+            {loading ? "LOGGING IN..." : "LOG IN"}
+
+            {!loading && (
+                <ArrowRight className="h-4 w-4" />
+            )}
+        </Button>
+
+        {unverifiedEmail && (
+            <div className="mt-4 rounded-sm border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-gray-900">
+                    Email Verification Required
+                </p>
+
+                <p className="mt-1 text-xs leading-relaxed text-gray-600">
+                    Your email address has not been verified yet.
+                    Please verify your email to access your VECTIS account.
+                </p>
+
+                <button
+                    type="button"
+                    onClick={() =>
+                        navigate("/verify-email", {
+                            state: { email: unverifiedEmail,
+                              resendOtp:true,
+                             },
+                        })
+                    }
+                    className="mt-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-black underline underline-offset-4 hover:text-gray-600"
+                >
+                    Verify Email
+                    <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+            </div>
+        )}
 
         {/* Divider */}
         <div className="flex items-center my-6">
@@ -94,10 +183,11 @@ const Login = () => {
         </div>
 
         {/* Google Login */}
-        <button
+        <Button
           type="button"
-          className="w-full border border-gray-300 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
-        >
+          variant="secondary"
+          className="w-full py-3 border border-gray-300 rounded-sm bg-white text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-3"
+      >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -116,9 +206,9 @@ const Login = () => {
               fill="#EA4335"
             />
           </svg>
-          CONTINUE WITH GOOGLE
-        </button>
 
+          CONTINUE WITH GOOGLE
+      </Button>
         {/* Sign Up Link */}
         <p className="text-center text-sm text-gray-600 mt-6">
           Don't have an account?{" "}

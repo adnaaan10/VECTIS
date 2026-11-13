@@ -8,7 +8,9 @@ import AuthLayout from "../../layouts/AuthLayout";
 import PasswordInput from "../../components/common/PasswordInput";
 import PhoneInput from "../../components/common/PhoneInput";
 import authBgImage from "../../assets/images/auth-bg.jpeg";
-import { registerUser } from "../../services/AuthService";
+import { registerUser } from "../../services/auth/authService";
+import EmailInput from "../../components/common/EmailInput";
+import Button from "../../components/common/Button";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -24,7 +26,6 @@ const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [apiError, setApiError] = useState("");
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -44,7 +45,6 @@ const Register = () => {
 
     setLoading(true);
     setErrors({});
-    setApiError("");
 
     try {
       const payload = {
@@ -85,7 +85,6 @@ const Register = () => {
         const errorMessage = error.response.data.message || "Registration failed. Please check your details.";
         toast.error(errorMessage, { position: "top-right" });
       } else {
-        setApiError("Unable to connect to the server. Please try again.");
         toast.error("Network error. Please check your connection.", { position: "top-right" });
       }
     } finally {
@@ -142,21 +141,14 @@ const Register = () => {
 
         {/* Email Address */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">
-            EMAIL ADDRESS <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
+          <EmailInput
+            label="EMAIL ADDRESS"
             name="email"
             value={formData.email}
             onChange={handleChange}
             placeholder="Enter your email address"
-            required
-            className={`w-full px-3 py-2.5 border rounded-sm text-sm font-body focus:outline-none focus:ring-1 transition-colors placeholder:text-gray-400 ${
-              errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-black focus:ring-black"
-            }`}
+            error={errors.email}
           />
-          {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
         </div>
 
         {/* Phone Number */}
@@ -207,13 +199,6 @@ const Register = () => {
             .
           </label>
         </div>
-
-        {/* API General Error */}
-        {apiError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-sm text-xs text-red-600 text-center">
-            {apiError}
-          </div>
-        )}
 
         {/* Submit Button */}
         <button

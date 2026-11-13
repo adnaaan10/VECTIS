@@ -1,6 +1,15 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User
+import re
+
+from django.conf import settings
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
+
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -37,6 +46,14 @@ class UserSerializer(serializers.ModelSerializer):
                     ]
                 })
         return super().to_internal_value(data)
+
+    def validate_phone(self,value):
+         value = value.strip()
+         if not re.fullmatch(r"[6-9]\d{9}", value):
+            raise serializers.ValidationError(
+                "Enter a valid 10-digit Indian mobile number."
+            )
+         return value
 
     def validate(self,attrs):
         if attrs["password"] != attrs["confirm_password"]:
@@ -125,7 +142,7 @@ class LoginSerializer(serializers.Serializer):
         return super().to_internal_value(data)
 
 
-class UserSummarySerializer(serializers.ModelSerializer):
+class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User

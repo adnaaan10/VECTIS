@@ -8,7 +8,7 @@ const AuthLayout = ({
   tagline,
   description,
   imageSrc,
-  centerContent = false, // <-- Added this prop (defaults to false)
+  centerContent = false,
 }) => {
   return (
     <div className="h-screen flex font-body overflow-hidden">
@@ -43,7 +43,6 @@ const AuthLayout = ({
 
       {/* Right Side - Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-white">
-        {/* Added conditional classes for centering */}
          <div className={`w-full max-w-md p-8 ${centerContent ? 'flex flex-col items-center max-h-screen overflow-y-auto' : 'overflow-y-auto h-full'}`}>
           {/* Mobile Logo */}
           <h1 className={`lg:hidden text-2xl font-heading font-bold tracking-wider mb-8 ${centerContent ? 'text-center w-full' : ''}`}>
