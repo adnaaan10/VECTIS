@@ -69,7 +69,7 @@ const Register = () => {
         draggable: true,
       });
 
-      navigate("/verify-otp", {
+      navigate("/verify-email", {
         state: {
           email: response.email || payload.email,
         },

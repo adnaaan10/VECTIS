@@ -57,8 +57,8 @@ const Login = () => {
 
             console.log("Login submitted:", response);
 
-            if (response.user.role === "ADMIN") {
-                navigate("/admin/dashboard", { replace: true });
+            if (response?.user?.role === "ADMIN") {
+                navigate("/admin/customers", { replace: true });
             } else {
                 navigate("/", { replace: true });
             }

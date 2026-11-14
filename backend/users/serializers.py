@@ -227,3 +227,18 @@ class ResetPasswordSerializer(serializers.Serializer):
         attrs["user"] = user
 
         return attrs
+
+
+class AdminUserListSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "is_active",
+        ]
+        read_only_fields = fields

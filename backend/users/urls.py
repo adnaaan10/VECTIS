@@ -12,4 +12,6 @@ urlpatterns = [
     path("auth/csrf/",views.csrf_token_view,name="csrf-token"),
     path("auth/logout/",views.LogoutView.as_view(),name="logout"),
     path("auth/me/",views.CurrentUserView.as_view(),name="current-user"),
+    path("admin/users/",views.AdminUserListView.as_view(),name="admin-user-list"),
+    path("admin/users/<uuid:user_id>/<str:action>/",views.AdminUserStatusView.as_view(),name="admin-user-status"),
 ]

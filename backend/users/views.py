@@ -1,11 +1,14 @@
 from django.db import transaction
 
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView,ListAPIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from django.conf import settings
+from django.db.models import Q
+
 
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -13,7 +16,13 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import CustomTokenRefreshSerializer
 
-from .serializers import UserSerializer, VerifyOTPSerializer, ResendOTPSerializer,LoginSerializer,UserProfileSerializer
+from .serializers import(
+    UserSerializer,
+    VerifyOTPSerializer, 
+    ResendOTPSerializer,
+    LoginSerializer,
+    UserProfileSerializer,
+    AdminUserListSerializer)
 from .models import EmailOtp, User
 from .services.otp_service import create_otp_record, verify_otp, resend_otp
 from .services.email_service import send_otp_email, send_reset_password_mail
@@ -25,6 +34,8 @@ from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny
+from .permissions import IsAdminRole
+from .pagination import UserListPagination
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
@@ -426,5 +437,110 @@ class CurrentUserView(APIView):
 
         return Response(
             serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+
+class AdminUserListView(ListAPIView):
+
+    serializer_class = AdminUserListSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = UserListPagination
+
+    def get_queryset(self):
+
+        queryset = User.objects.filter(
+            role=User.Role.USER
+        ).order_by("-created_at")
+
+        # Search customers
+        search = self.request.query_params.get("search", "").strip()
+
+        if search:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+
+        # Filter by account status
+        status_filter = self.request.query_params.get(
+            "status", "ALL"
+        ).upper()
+
+        if status_filter == "ACTIVE":
+            queryset = queryset.filter(is_active=True)
+
+        elif status_filter == "BLOCKED":
+            queryset = queryset.filter(is_active=False)
+
+        elif status_filter != "ALL":
+            raise ValidationError({
+                "status": "Invalid status. Use ALL, ACTIVE or BLOCKED."
+            })
+
+        return queryset
+
+
+
+class AdminUserStatusView(APIView):
+
+    permission_classes = [IsAdminRole]
+
+    def patch(self, request, user_id, action):
+
+        user = User.objects.filter(
+            id=user_id,
+            role=User.Role.USER
+        ).first()
+
+        if not user:
+            return Response(
+                {"message": "Customer not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if user.id == request.user.id:
+            return Response(
+                {"message": "You cannot change your own account status."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if action == "block":
+
+            if not user.is_active:
+                return Response(
+                    {"message": "Customer is already blocked."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.is_active = False
+            message = "Customer blocked successfully."
+
+        elif action == "unblock":
+
+            if user.is_active:
+                return Response(
+                    {"message": "Customer is already active."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.is_active = True
+            message = "Customer unblocked successfully."
+
+        else:
+            return Response(
+                {"message": "Invalid action."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.save(update_fields=["is_active"])
+
+        return Response(
+            {
+                "message": message,
+                "user_id": str(user.id),
+                "is_active": user.is_active
+            },
             status=status.HTTP_200_OK
         )
