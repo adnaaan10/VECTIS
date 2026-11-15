@@ -1,5 +1,4 @@
 import api from "../api";
-import { useNavigate } from "react-router-dom";
 
 export const registerUser = async (data) => {
     const response = await api.post(

@@ -1,5 +1,8 @@
 
 from datetime import timedelta
+from urllib.parse import urlencode
+from django.db import transaction
+from ..models import User
 
 from rest_framework_simplejwt.tokens import Token
 from django.conf import settings
@@ -14,17 +17,33 @@ class PasswordResetToken(Token):
 
 def generate_password_reset_link(user):
 
-    token = PasswordResetToken()
+    with transaction.atomic():
 
-    token["user_id"] = str(user.id)
+        locked_user = User.objects.select_for_update().get(
+            id=user.id
+        )
 
-    reset_token = str(token)
+        locked_user.password_reset_version+=1
+        locked_user.save(
+            update_fields=["password_reset_version"]
+        )
+        
+        token = PasswordResetToken()
 
-    print("Reset_Token:=== ", reset_token)
+        token["user_id"] = str(locked_user.id)
+        token["reset_version"] = locked_user.password_reset_version
 
-    reset_link = (
-        f"{settings.FRONTEND_URL}/reset-password"
-        f"?token={reset_token}"
-    )
+        reset_token = str(token)
+
+        query_string = urlencode({
+            "token": reset_token
+        })
+
+        print("Reset_Token:=== ", reset_token)
+
+        reset_link = (
+            f"{settings.FRONTEND_URL}/reset-password"
+            f"?{query_string}"
+        )
 
     return reset_link

@@ -343,7 +343,7 @@ class ForgotPasswordView(APIView):
         if not user or not user.is_active:
             return Response(
                 {
-                    "message": "If an eligible account exists, a password reset OTP has been sent."
+                    "message": "If an eligible account exists, a password reset Link has been sent."
                 },
                 status=status.HTTP_200_OK
             )
@@ -355,7 +355,7 @@ class ForgotPasswordView(APIView):
 
         return Response(
             {
-                "message": "If an eligible account exists, a password reset OTP has been sent."
+                "message": "If an eligible account exists, a password reset Link has been sent."
             },
             status=status.HTTP_200_OK
         )
@@ -373,12 +373,23 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
+        reset_version = serializer.validated_data["reset_version"]
 
-        user.set_password(
-            serializer.validated_data["new_password"]
-        )
+        with transaction.atomic():
+            locked_user =User.objects.filter(id=user.id,is_active=True).first()
 
-        user.save(update_fields=["password"])
+            if (
+                not locked_user or locked_user.password_reset_version != reset_version
+            ):
+                raise ValidationError({
+                    "token":"Invalid or already used password reset Link."
+                })
+
+            locked_user.set_password(serializer.validated_data["new_password"])
+
+            locked_user.password_reset_version+=1
+
+            locked_user.save(update_fields=["password","password_reset_version"])
 
         return Response(
             {

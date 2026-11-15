@@ -213,18 +213,25 @@ class ResetPasswordSerializer(serializers.Serializer):
             token = PasswordResetToken(attrs["token"])
 
             user_id = token["user_id"]
+            reset_version = token["reset_version"]
 
             user = User.objects.get(
                 id=user_id,
                 is_active=True
             )
 
-        except (TokenError, User.DoesNotExist, KeyError):
+            if reset_version != user.password_reset_version:
+                raise serializers.ValidationError({
+                    "token":"Invalid or expired password reset link."
+                })
+
+        except (TokenError, User.DoesNotExist, KeyError,TypeError):
             raise serializers.ValidationError({
                 "token": "Invalid or expired password reset link."
             })
 
         attrs["user"] = user
+        attrs["reset_version"] = reset_version
 
         return attrs
 

@@ -55,8 +55,6 @@ const Login = () => {
                 }
             )
 
-            console.log("Login submitted:", response);
-
             if (response?.user?.role === "ADMIN") {
                 navigate("/admin/customers", { replace: true });
             } else {
@@ -64,18 +62,10 @@ const Login = () => {
             }
 
         }catch (error) {
-    console.log("FULL ERROR:", error);
-    console.log("STATUS:", error.response?.status);
-    console.log("RESPONSE DATA:", error.response?.data);
-    console.log(
-        "EMAIL VERIFIED:",
-        error.response?.data?.is_email_verified
-    );
 
     const errorData = error.response?.data;
 
     if (errorData?.is_email_verified === false) {
-        console.log("UNVERIFIED EMAIL DETECTED");
 
         setUnverifiedEmail(errorData.email);
         toast.error(errorData.message);
