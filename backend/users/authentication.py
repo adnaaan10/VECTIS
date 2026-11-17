@@ -1,7 +1,7 @@
 
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import CSRFCheck
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied,AuthenticationFailed
 
 
 class CookieJWTAuthentication(JWTAuthentication):
@@ -17,7 +17,22 @@ class CookieJWTAuthentication(JWTAuthentication):
 
         validated_token = self.get_validated_token(raw_token)
 
-        return self.get_user(validated_token), validated_token
+        user = self.get_user(validated_token)
+
+        
+        token_version = validated_token.get(
+            "password_reset_version"
+        )
+
+        if (
+            token_version is None
+            or token_version != user.password_reset_version
+        ):
+            raise AuthenticationFailed(
+                "Your session has expired. Please log in again."
+            )
+
+        return user, validated_token
 
     def enforce_csrf(self, request):
 

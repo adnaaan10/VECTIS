@@ -60,6 +60,18 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // Clear authentication locally without calling the backend
+    const clearAuth = () => {
+        setUser(null);
+    };
+
+    const updateUser = (updatedData) => {
+        setUser((prevUser) => ({
+            ...prevUser,
+            ...updatedData,
+        }));
+    };
+
     // Handle expired session when refresh fails
     useEffect(() => {
 
@@ -89,7 +101,9 @@ export const AuthProvider = ({ children }) => {
                 isAuthenticated,
                 login,
                 logout,
+                clearAuth,
                 initializeAuth,
+                updateUser,
             }}
         >
             {children}

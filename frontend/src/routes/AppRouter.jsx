@@ -10,6 +10,10 @@ import RegisterPage from "../pages/auth/RegisterPage";
 import VerifyEmail from "../pages/auth/VerifyEmail";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
+import ProfilePage from "../pages/user/ProfilePage";
+import AddressPage from "../pages/user/AddressPage";
+import ChangePasswordPage from "../pages/user/ChangePasswordPage";
+import ChangeEmailPage from "../pages/user/ChangeEmailPage";
 
 import ProtectedAdminRoute from "../components/common/ProtectedAdminRoute";
 import Customers from "../pages/admin/Customers";
@@ -28,6 +32,10 @@ function AppRouter() {
                 {/* Customer routes */}
                 <Route element={<UserLayout />}>
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/account/profile" element={<ProfilePage/>}/>
+                    <Route path="/account/addresses/" element={<AddressPage/>}/>
+                    <Route path="/account/change-password/" element={<ChangePasswordPage/>}/>
+                    <Route path="/account/change-email/" element={<ChangeEmailPage/>}/>
                 </Route>
 
                 {/* Admin routes */}

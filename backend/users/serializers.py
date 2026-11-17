@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User
+from django.core.exceptions import ValidationError as DjangoValidationError 
+from .models import User,Address
 import re
+import cloudinary.utils
+from PIL import Image,UnidentifiedImageError
 
 from django.conf import settings
 from django.utils.decorators import method_decorator
@@ -144,6 +147,8 @@ class LoginSerializer(serializers.Serializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
 
+    avatar_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -153,10 +158,78 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "last_name",
             "phone",
             "role",
-            "avatar_public_id",
-            "is_email_verified"
+            "avatar_url",
+            "is_email_verified",
         ]
         read_only_fields = fields
+
+    def get_avatar_url(self, obj):
+
+        if not obj.avatar_public_id:
+            return None
+
+        return cloudinary.utils.cloudinary_url(
+            obj.avatar_public_id,
+            secure=True
+        )[0]
+
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = [
+            "first_name",
+            "last_name",
+            "phone",
+        ]
+
+    def to_internal_value(self, data):
+
+        if isinstance(data, dict):
+            incoming_fields = set(data.keys())
+            permitted_fields = set(self.fields.keys())
+
+            extra_fields = incoming_fields - permitted_fields
+
+            if extra_fields:
+                raise serializers.ValidationError({
+                    "non_field_errors": [
+                        f"Unexpected fields in request: {', '.join(extra_fields)}"
+                    ]
+                })
+
+        return super().to_internal_value(data)
+
+    def validate_first_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "First name cannot be empty."
+            )
+
+        return value
+
+    def validate_last_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Last name cannot be empty."
+            )
+
+        return value
+
+    def validate_phone(self, value):
+        value = value.strip()
+
+        if not re.fullmatch(r"[6-9]\d{9}", value):
+            raise serializers.ValidationError(
+                "Enter a valid 10-digit Indian mobile number."
+            )
+
+        return value
 
 
 
@@ -172,6 +245,15 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
         if not user or not user.is_active:
             raise AuthenticationFailed(
                 "User account is inactive or does not exist."
+            )
+
+        token_version = refresh.payload.get(
+            "password_reset_version"
+        )
+
+        if token_version != user.password_reset_version:
+            raise AuthenticationFailed(
+                "Your session has expired. Please log in again."
             )
 
         return super().validate(attrs)
@@ -249,3 +331,209 @@ class AdminUserListSerializer(serializers.ModelSerializer):
             "is_active",
         ]
         read_only_fields = fields
+
+
+
+class AvatarUploadSerializer(serializers.Serializer):
+
+    avatar = serializers.ImageField(
+        required=True,
+        error_messages={
+            "required": "Profile picture is required.",
+            "invalid": "Upload a valid image file.",
+            "empty": "Image file cannot be empty.",
+        }
+    )
+
+    def validate_avatar(self, value):
+
+        # Maximum file size: 5 MB
+        max_size = 5 * 1024 * 1024
+
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                "Image size must not exceed 5 MB."
+            )
+
+        # Check actual image format
+        try:
+            image = Image.open(value)
+            image.verify()
+
+        except (UnidentifiedImageError, OSError, ValueError):
+            raise serializers.ValidationError(
+                "Upload a valid image file."
+            )
+
+        # Allow only JPG, PNG and WEBP
+        allowed_formats = ["JPEG", "PNG", "WEBP"]
+
+        if image.format not in allowed_formats:
+            raise serializers.ValidationError(
+                "Only JPG, JPEG, PNG and WEBP images are allowed."
+            )
+
+        value.seek(0)
+
+        return value
+
+
+class AddressSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Address
+        fields = [
+            "id",
+            "address_type",
+            "full_name",
+            "phone",
+            "address_line_1",
+            "address_line_2",
+            "landmark",
+            "city",
+            "state",
+            "postal_code",
+            "country",
+            "is_default",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "is_default",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_phone(self, value):
+        value = value.strip()
+
+        if not value.isdigit() or len(value) != 10:
+            raise serializers.ValidationError(
+                "Enter a valid 10-digit phone number."
+            )
+
+        if value[0] not in "6789":
+            raise serializers.ValidationError(
+                "Enter a valid Indian mobile number."
+            )
+
+        return value
+
+    def validate_postal_code(self, value):
+        value = value.strip()
+
+        if not value.isdigit() or len(value) != 6:
+            raise serializers.ValidationError(
+                "Enter a valid 6-digit Indian PIN code."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        text_fields = [
+            "full_name",
+            "address_line_1",
+            "address_line_2",
+            "landmark",
+            "city",
+            "state",
+        ]
+
+        for field in text_fields:
+            if field in attrs and attrs[field]:
+                attrs[field] = attrs[field].strip()
+
+        return attrs
+
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+
+    current_password = serializers.CharField(
+        write_only=True,
+        required=True
+    )
+
+    new_password = serializers.CharField(
+        write_only=True,
+        required=True
+    )
+
+    confirm_password = serializers.CharField(
+        write_only=True,
+        required=True
+    )
+
+    def validate(self, attrs):
+
+        user = self.context["request"].user
+
+        current_password = attrs["current_password"]
+        new_password = attrs["new_password"]
+        confirm_password = attrs["confirm_password"]
+
+        # Check current password
+        if not user.check_password(current_password):
+            raise serializers.ValidationError({
+                "current_password": "Current password is incorrect."
+            })
+
+        # Check whether the new password is different
+        if current_password == new_password:
+            raise serializers.ValidationError({
+                "new_password": "New password must be different from the current password."
+            })
+
+        # Check password confirmation
+        if new_password != confirm_password:
+            raise serializers.ValidationError({
+                "confirm_password": "Passwords do not match."
+            })
+
+        # Apply Django password validators
+        try:
+            validate_password(new_password, user=user)
+
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({
+                "new_password": exc.messages
+            })
+
+        return attrs
+
+
+
+class ChangeEmailSerializer(serializers.Serializer):
+
+    new_email = serializers.EmailField(required=True)
+
+    def validate_new_email(self, value):
+
+        value = value.strip().lower()
+
+        user = self.context["request"].user
+
+        # Check whether the new email is the current email.
+        if value == user.email.lower():
+            raise serializers.ValidationError(
+                "This is already your current email address."
+            )
+
+        # Check whether another account already uses this email.
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "This email address is already registered."
+            )
+
+        return value
+
+
+class VerifyChangeEmailSerializer(serializers.Serializer):
+
+    otp = serializers.CharField(
+        required=True,
+        min_length=6,
+        max_length=6
+    )

@@ -12,7 +12,7 @@ def generate_otp():
     return raw_otp, hashed_otp
 
 
-def create_otp_record(user,):
+def create_otp_record(user,purpose=EmailOtp.Purpose.EMAIL_VERIFICATION,target_email=None):
     raw_otp, hashed_otp = generate_otp()
 
     current_time = timezone.now()
@@ -20,6 +20,8 @@ def create_otp_record(user,):
     otp_record = EmailOtp.objects.create(
         user=user,
         otp_hash=hashed_otp,
+        purpose=purpose,
+        target_email=target_email,
         expires_at=current_time + timedelta(minutes=5),
         attempts=0,
         resend_count=0,
@@ -29,7 +31,7 @@ def create_otp_record(user,):
 
     return raw_otp, otp_record
 
-def verify_otp(user, submitted_otp,):
+def verify_otp(user, submitted_otp,purpose=EmailOtp.Purpose.EMAIL_VERIFICATION):
 
     with transaction.atomic():
 
@@ -38,6 +40,7 @@ def verify_otp(user, submitted_otp,):
             .select_for_update()
             .filter(
                 user=user,
+                purpose=purpose
             )
             .order_by("-created_at")
             .first()
@@ -72,7 +75,7 @@ def verify_otp(user, submitted_otp,):
         return True, "OTP verified successfully."
 
 
-def resend_otp(user,):
+def resend_otp(user,purpose=EmailOtp.Purpose.EMAIL_VERIFICATION):
 
     with transaction.atomic():
 
@@ -81,6 +84,7 @@ def resend_otp(user,):
             .select_for_update()
             .filter(
                 user=user,
+                purpose=purpose
             )
             .order_by("-created_at")
             .first()
@@ -90,7 +94,13 @@ def resend_otp(user,):
 
         if (not otp_record or otp_record.is_used 
             or otp_record.expires_at <= current_time):
-            raw_otp, otp_record = create_otp_record(user)
+
+            target_email = (
+                otp_record.target_email if otp_record else None
+            )
+
+            raw_otp, otp_record = create_otp_record(user=user,purpose=purpose,target_email=target_email)
+            
             return True, raw_otp, "OTP sent successfully.",60
 
         if otp_record.resend_count >= 3:
@@ -98,8 +108,10 @@ def resend_otp(user,):
 
         if otp_record.last_sent_at:
             time_elapsed = (current_time - otp_record.last_sent_at).total_seconds()
+            
             if time_elapsed < 60:
                 seconds_remaining = int(60 - time_elapsed)
+                
                 return False, None, "Please wait before requesting another OTP.", seconds_remaining
 
         raw_otp, hashed_otp = generate_otp()
@@ -109,6 +121,7 @@ def resend_otp(user,):
         otp_record.attempts = 0
         otp_record.resend_count += 1
         otp_record.last_sent_at = current_time
+        
         otp_record.save(update_fields=[
             "otp_hash",
             "expires_at",

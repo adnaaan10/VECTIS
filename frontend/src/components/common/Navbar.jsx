@@ -44,42 +44,38 @@ const Navbar = () => {
 
         {/* Right icons */}
         <div className="flex items-center gap-4 text-gray-700">
-          <button aria-label="Search" className="hover:text-black"><Search className="h-5 w-5" /></button>
-          <button aria-label="Wishlist" className="hover:text-black"><Heart className="h-5 w-5" /></button>
-          <button aria-label="Cart" className="relative hover:text-black">
+            <button aria-label="Search" className="hover:text-black"><Search className="h-5 w-5" /></button>
+            <button aria-label="Wishlist" className="hover:text-black"><Heart className="h-5 w-5" /></button>
+            <button aria-label="Cart" className="relative hover:text-black">
             <ShoppingBag className="h-5 w-5" />
             <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
-              0
+                0
             </span>
-          </button>
-          {user ? (
-              <div className="flex items-center gap-3">
-                  <Link
-                      to="/account"
-                      aria-label="Account"
-                      className="rounded-full bg-black p-1.5 text-white"
-                  >
-                      <User className="h-4 w-4" />
-                  </Link>
-
-                  <button
-                      type="button"
-                      onClick={async () => {
-                          await logout();
-                      }}
-                      className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 transition-colors hover:text-black"
-                  >
-                      Logout
-                  </button>
-              </div>
-          ) : (
-              <Link
-                  to="/login"
-                  className="text-[10px] font-semibold uppercase tracking-widest text-gray-700 transition-colors hover:text-black"
-              >
-                  Login
-              </Link>
-          )}
+            </button>
+            {user ? (
+                <Link
+                    to="/account/profile"
+                    aria-label="My Account"
+                    className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-black text-white"
+                >
+                    {user.avatar_url ? (
+                                <img
+                                    src={user.avatar_url}
+                                    alt="Profile"
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <User className="h-4 w-4" />
+                            )}
+                        </Link>
+                    ) : (
+                        <Link
+                            to="/login"
+                            className="text-[10px] font-semibold uppercase tracking-widest text-gray-700 transition-colors hover:text-black"
+                        >
+                            Login
+                        </Link>
+            )}
 
           {/* Mobile toggle */}
           <button className="md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Menu">
@@ -111,36 +107,23 @@ const Navbar = () => {
               {/* Authentication links */}
               <div className="mt-3 border-t border-gray-200 pt-3">
 
-                  {user ? (
-                      <>
-                          <Link
-                              to="/account"
-                              onClick={() => setOpen(false)}
-                              className="block py-2 text-[11px] font-semibold uppercase tracking-widest text-gray-700"
-                          >
-                              My Account
-                          </Link>
-
-                          <button
-                              type="button"
-                              onClick={async () => {
-                                  await logout();
-                                  setOpen(false);
-                              }}
-                              className="py-2 text-[11px] font-semibold uppercase tracking-widest text-gray-700 hover:text-black"
-                          >
-                              Logout
-                          </button>
-                      </>
-                  ) : (
-                      <Link
-                          to="/login"
-                          onClick={() => setOpen(false)}
-                          className="block py-2 text-[11px] font-semibold uppercase tracking-widest text-gray-700"
-                      >
-                          Login
-                      </Link>
-                  )}
+                {user ? (
+                        <Link
+                            to="/account/profile"
+                            onClick={() => setOpen(false)}
+                            className="block py-2 text-[11px] font-semibold uppercase tracking-widest text-gray-700"
+                        >
+                            My Account
+                        </Link>
+                    ) : (
+                        <Link
+                            to="/login"
+                            onClick={() => setOpen(false)}
+                            className="block py-2 text-[11px] font-semibold uppercase tracking-widest text-gray-700"
+                        >
+                            Login
+                        </Link>
+                )}
 
               </div>
           </nav>

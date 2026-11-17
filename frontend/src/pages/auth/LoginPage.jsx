@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link,useNavigate } from "react-router-dom";
+import React, { useState,useEffect } from "react";
+import { Link,useNavigate,useLocation } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import PasswordInput from "../../components/common/PasswordInput";
 import authBgImage from "../../assets/images/auth-bg.jpeg";
@@ -19,11 +19,28 @@ const Login = () => {
     });
 
     
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+    const location = useLocation();
+    
     const [loading,setLoading] = useState(false);
     const [errors,setErrors] = useState({});
     const [unverifiedEmail, setUnverifiedEmail] = useState(null);
     
+
+    useEffect(() => {
+      if (location.state?.message) {
+        toast.success(location.state.message, {
+          toastId:"password-change-success",
+          autoClose: 4000,
+        });
+
+        // Clear the message so it doesn't appear again.
+        navigate(location.pathname, {
+          replace: true,
+          state: null,
+        });
+      }
+    }, [location, navigate]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });

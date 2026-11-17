@@ -77,3 +77,42 @@ export const getCurrentUser = async () => {
 
     return response.data;
 };
+
+
+
+export const changePassword = async (data) => {
+  const response = await api.post(
+    "/auth/change-password/",
+    data
+  );
+
+  return response.data;
+};
+
+
+export const requestChangeEmail = async (data) => {
+    const response = await api.post(
+        "/auth/change-email/",
+        data
+    );
+
+    return response.data;
+};
+
+export const verifyChangeEmail = async (data) => {
+    const response = await api.post(
+        "/auth/verify-change-email/",
+        data
+    );
+
+    return response.data;
+};
+
+
+export const resendChangeEmailOtp = async () => {
+    const response = await api.post(
+        "/auth/resend-change-email-otp/"
+    );
+
+    return response.data;
+};

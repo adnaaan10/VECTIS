@@ -4,10 +4,34 @@ from django.conf import settings
 from users.models import EmailOtp
 
 
-def send_otp_email(user, raw_otp):
+def send_otp_email(user,
+                   raw_otp,
+                   purpose=EmailOtp.Purpose.EMAIL_VERIFICATION,
+                   target_email=None):
 
-    subject = "Verify Your VECTIS Account"
-    message = f"""
+    if purpose == EmailOtp.Purpose.CHANGE_EMAIL:
+        recipient_email = target_email
+        subject = "Verify Your New Email Address - VECTIS"
+        message = f"""
+
+Hello {user.first_name},
+
+You requested to change your VECTIS account email address.
+
+Your email verification OTP is: {raw_otp}
+
+This OTP is valid for 5 minutes.
+
+If you did not request this change, please ignore this email.
+
+Regards,
+VECTIS Team
+"""
+    else:
+        recipient_email = user.email
+        subject = "Verify Your VECTIS Account"
+
+        message = f"""
 Hello {user.first_name},
 
 Thank you for registering with VECTIS.
@@ -22,11 +46,12 @@ Regards,
 VECTIS Team
 """
 
+
     return send_mail(
         subject=subject,
         message=message,
         from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
+        recipient_list=[recipient_email],
         fail_silently=False
     )
 
