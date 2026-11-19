@@ -36,3 +36,20 @@ export const removeUserAvatar = async () => {
 
     return response.data;
 };
+
+
+export const googleLogin = async (credential)=>{
+    const response = await api.post("auth/google/",{
+        credential:credential
+    }
+    )
+
+    return response.data;
+}
+
+
+export const completeUserProfile = async (data) => {
+    const response = await api.patch("/auth/complete-profile/", data);
+
+    return response.data;
+};

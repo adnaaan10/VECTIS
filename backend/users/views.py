@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError,AuthenticationFailed
 from django.conf import settings
 from django.db.models import Q
 
@@ -17,7 +17,9 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import (CustomTokenRefreshSerializer,
                           ChangePasswordSerializer,
                           ChangeEmailSerializer,
-                          VerifyChangeEmailSerializer
+                          VerifyChangeEmailSerializer,
+                          GoogleAuthenticationSerializer,
+                          ProfileCompletionSerializer
                           )
 
 
@@ -1105,3 +1107,206 @@ class ResendChangeEmailOTPView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class GoogleAuthenticationView(APIView):
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+
+        serializer = GoogleAuthenticationSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        google_data = serializer.validated_data["credential"]
+
+        google_id = google_data["google_id"]
+        email = google_data["email"]
+        first_name = google_data["first_name"]
+        last_name = google_data["last_name"]
+
+        try:
+
+            with transaction.atomic():
+
+                # 1. Check whether this Google account already exists.
+                user = User.objects.select_for_update().filter(
+                    google_id=google_id
+                ).first()
+
+                is_new_user = False
+
+                if user:
+
+                    # Do not silently change an existing VECTIS email.
+                    if user.email.lower() != email:
+                        raise AuthenticationFailed(
+                            "Your Google email has changed. Please contact support."
+                        )
+
+                else:
+
+                    # 2. Check whether an account already exists
+                    # with this verified email.
+                    user = User.objects.select_for_update().filter(
+                        email__iexact=email
+                    ).first()
+
+                    if user:
+
+                        # Prevent linking a Google account already
+                        # associated with another VECTIS account.
+                        if user.google_id and user.google_id != google_id:
+                            raise AuthenticationFailed(
+                                "This email is already linked to another Google account."
+                            )
+
+                        # Link Google to the existing account.
+                        user.google_id = google_id
+
+                        # Preserve EMAIL as the authentication provider.
+                        # Existing password login must continue working.
+                        user.save(update_fields=["google_id"])
+
+                    else:
+
+                        # 3. Create a new Google account.
+                        user = User(
+                            email=email,
+                            first_name=first_name,
+                            last_name=last_name,
+                            phone="",
+                            role=User.Role.USER,
+                            auth_provider=User.AuthProvider.GOOGLE,
+                            google_id=google_id,
+                            is_active=True,
+                            is_email_verified=True,
+                            is_profile_completed=False
+                        )
+
+                        user.set_unusable_password()
+                        user.save()
+
+                        is_new_user = True
+
+                # 4. Check account status.
+                if not user.is_active:
+                    raise AuthenticationFailed(
+                        "Your account has been deactivated. Please contact support."
+                    )
+
+                if not user.is_email_verified:
+                    raise AuthenticationFailed(
+                        "Your email address is not verified."
+                    )
+
+                # 5. Generate JWT tokens.
+                refresh = RefreshToken.for_user(user)
+
+                refresh["role"] = user.role
+                refresh["email"] = user.email
+                refresh["first_name"] = user.first_name
+                refresh["last_name"] = user.last_name
+                refresh["password_reset_version"] = user.password_reset_version
+
+                access_token = str(refresh.access_token)
+                refresh_token = str(refresh)
+
+                # 6. Serialize user information.
+                user_data = UserProfileSerializer(user).data
+
+            response = Response(
+                {
+                    "message": "Google authentication successful.",
+                    "user": user_data,
+                    "is_new_user": is_new_user,
+                    "is_profile_completed": user.is_profile_completed
+                },
+                status=status.HTTP_200_OK
+            )
+
+            # 7. Set authentication cookies.
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                max_age=int(
+                    settings.SIMPLE_JWT[
+                        "ACCESS_TOKEN_LIFETIME"
+                    ].total_seconds()
+                ),
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/"
+            )
+
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                max_age=int(
+                    settings.SIMPLE_JWT[
+                        "REFRESH_TOKEN_LIFETIME"
+                    ].total_seconds()
+                ),
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/"
+            )
+
+            return response
+
+        except IntegrityError:
+            return Response(
+                {
+                    "message": "Unable to create or link your Google account. Please try again."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+
+class ProfileCompletionView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+
+        if request.user.is_profile_completed:
+            return Response(
+                {"message": "Your profile is already completed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ProfileCompletionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+
+        user.first_name = serializer.validated_data["first_name"]
+        user.last_name = serializer.validated_data["last_name"]
+        user.phone = serializer.validated_data["phone"]
+        user.is_profile_completed = True
+
+        user.save(update_fields=[
+            "first_name",
+            "last_name",
+            "phone",
+            "is_profile_completed",
+            "updated_at"
+        ])
+
+        return Response(
+            {
+                "message": "Profile completed successfully.",
+                "user": UserProfileSerializer(user).data
+            },
+            status=status.HTTP_200_OK
+        )

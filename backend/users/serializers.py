@@ -14,6 +14,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
+
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -30,6 +33,11 @@ class UserSerializer(serializers.ModelSerializer):
                                         "blank": "Password cannot be empty."
                                     })
     confirm_password = serializers.CharField(write_only=True,required=True)
+
+    phone = serializers.CharField(
+        required=True,
+        allow_blank=False
+    )
 
     class Meta:
         model = User
@@ -160,6 +168,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "role",
             "avatar_url",
             "is_email_verified",
+            "is_profile_completed",
         ]
         read_only_fields = fields
 
@@ -537,3 +546,93 @@ class VerifyChangeEmailSerializer(serializers.Serializer):
         min_length=6,
         max_length=6
     )
+
+
+
+
+class GoogleAuthenticationSerializer(serializers.Serializer):
+
+    credential = serializers.CharField(
+        required=True,
+        write_only=True
+    )
+
+    def validate_credential(self, value):
+
+        try:
+            # Verify Google's ID token.
+            token_data = id_token.verify_oauth2_token(
+                value,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID
+            )
+
+        except ValueError:
+            raise serializers.ValidationError(
+                "Invalid or expired Google authentication token."
+            )
+
+        # Check whether Google has verified the email.
+        if token_data.get("email_verified") is not True:
+            raise serializers.ValidationError(
+                "Your Google email address is not verified."
+            )
+
+        google_id = token_data.get("sub")
+        email = token_data.get("email")
+
+        if not google_id or not email:
+            raise serializers.ValidationError(
+                "Required Google account information is missing."
+            )
+
+        return {
+            "google_id": google_id,
+            "email": email.strip().lower(),
+            "first_name": token_data.get("given_name", ""),
+            "last_name": token_data.get("family_name", ""),
+            "email_verified": True,
+        }
+
+
+
+class ProfileCompletionSerializer(serializers.Serializer):
+
+    first_name = serializers.CharField(max_length=100)
+    last_name = serializers.CharField(max_length=100)
+    phone = serializers.CharField(max_length=20)
+
+    def validate_first_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError("First name is required.")
+
+        return value
+
+    def validate_last_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError("Last name is required.")
+
+        return value
+
+    def validate_phone(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError("Phone number is required.")
+
+        if not value.isdigit() or len(value) != 10:
+            raise serializers.ValidationError(
+                "Enter a valid 10-digit phone number."
+            )
+
+        if value[0] not in "6789":
+            raise serializers.ValidationError(
+                "Enter a valid Indian phone number."
+            )
+
+        return value
+

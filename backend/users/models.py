@@ -37,7 +37,9 @@ class User(AbstractBaseUser,PermissionsMixin):
     )
 
     phone = models.CharField(
-        max_length=20
+        max_length=20,
+        blank=True,
+        default=""
     )
 
     role = models.CharField(
@@ -57,6 +59,7 @@ class User(AbstractBaseUser,PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
     password_reset_version = models.PositiveIntegerField(default=0)
+    is_profile_completed = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
 ]
 
 
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID")
 
 cloudinary.config(
     cloud_name=env("CLOUDINARY_CLOUD_NAME"),

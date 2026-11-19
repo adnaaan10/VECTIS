@@ -22,4 +22,6 @@ urlpatterns = [
     path("auth/change-email/",views.ChangeEmailView.as_view(),name="change-email"),
     path("auth/verify-change-email/",views.VerifyChangeEmailView.as_view(),name="verify-change-email"),
     path("auth/resend-change-email-otp/",views.ResendChangeEmailOTPView.as_view(),name="resend-change-email-otp"),
+    path("auth/google/",views.GoogleAuthenticationView.as_view(),name="google-auth"),
+    path("auth/complete-profile/",views.ProfileCompletionView.as_view(),name="complete-profile"),
 ]

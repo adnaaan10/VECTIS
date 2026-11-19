@@ -20,6 +20,10 @@ export const AuthProvider = ({ children }) => {
 
     const isAuthenticated = Boolean(user);
 
+    const requiresProfileCompletion = Boolean(
+        user && user.is_profile_completed === false
+    );
+
     // Restore authentication when React starts
     const initializeAuth = async () => {
 
@@ -99,6 +103,7 @@ export const AuthProvider = ({ children }) => {
                 user,
                 loading,
                 isAuthenticated,
+                requiresProfileCompletion,
                 login,
                 logout,
                 clearAuth,

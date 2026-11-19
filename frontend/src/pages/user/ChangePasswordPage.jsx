@@ -3,7 +3,7 @@ import { useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import AccountSidebar from "../../components/user/profile/AccountSidebar";
+import AccountLayout from "../../components/user/profile/AccountLayout";
 import PasswordInput from "../../components/common/PasswordInput";
 
 import { changePassword } from "../../services/auth/authService";
@@ -13,7 +13,7 @@ import { useAuth } from "../../context/AuthContext";
 const ChangePasswordPage = () => {
 
   const navigate = useNavigate();
-  const { clearAuth  } = useAuth();
+  const { clearAuth } = useAuth();
 
   const [formData, setFormData] = useState({
     current_password: "",
@@ -120,129 +120,98 @@ const ChangePasswordPage = () => {
 
 
   return (
-    <div className="bg-white">
+    <AccountLayout
+      breadcrumb="Change Password"
+      heading="Change Password"
+      description="Update your password to keep your account secure."
+    >
 
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="max-w-2xl pt-6">
 
-        {/* Breadcrumb */}
-        <div className="mb-8 text-sm text-gray-500">
-          Home / My Account / Change Password
+        {/* Section heading */}
+        <div className="mb-7 flex items-center gap-3">
+
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100">
+            <LockKeyhole className="h-5 w-5 text-gray-700" />
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-900">
+              Update your password
+            </h3>
+
+            <p className="text-sm text-gray-500">
+              Enter your current and new password.
+            </p>
+          </div>
+
         </div>
 
 
-        {/* Page heading */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            Change Password
-          </h1>
+        <form onSubmit={handleSubmit} className="space-y-5">
 
-          <p className="mt-2 text-sm text-gray-500">
-            Update your password to keep your account secure.
-          </p>
-        </div>
-
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[260px_1fr]">
-
-          {/* Account sidebar */}
-          <AccountSidebar />
+          {/* Current password */}
+          <PasswordInput
+            label="Current Password"
+            name="current_password"
+            placeholder="Enter current password"
+            value={formData.current_password}
+            onChange={handleChange}
+            error={fieldErrors.current_password}
+          />
 
 
-          {/* Main content */}
-          <main>
-
-            <div className="max-w-2xl rounded-xl border border-gray-200 bg-white p-6 sm:p-8">
-
-              {/* Section heading */}
-              <div className="mb-7 flex items-center gap-3">
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100">
-                  <LockKeyhole className="h-5 w-5 text-gray-700" />
-                </div>
-
-                <div>
-                  <h2 className="font-semibold text-gray-900">
-                    Update your password
-                  </h2>
-
-                  <p className="text-sm text-gray-500">
-                    Enter your current and new password.
-                  </p>
-                </div>
-
-              </div>
+          {/* New password */}
+          <PasswordInput
+            label="New Password"
+            name="new_password"
+            placeholder="Enter new password"
+            value={formData.new_password}
+            onChange={handleChange}
+            error={fieldErrors.new_password}
+          />
 
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-
-                {/* Current password */}
-                <PasswordInput
-                  label="Current Password"
-                  name="current_password"
-                  placeholder="Enter current password"
-                  value={formData.current_password}
-                  onChange={handleChange}
-                  error={fieldErrors.current_password}
-                />
+          {/* Confirm password */}
+          <PasswordInput
+            label="Confirm New Password"
+            name="confirm_password"
+            placeholder="Re-enter new password"
+            value={formData.confirm_password}
+            onChange={handleChange}
+            error={fieldErrors.confirm_password}
+          />
 
 
-                {/* New password */}
-                <PasswordInput
-                  label="New Password"
-                  name="new_password"
-                  placeholder="Enter new password"
-                  value={formData.new_password}
-                  onChange={handleChange}
-                  error={fieldErrors.new_password}
-                />
-
-
-                {/* Confirm password */}
-                <PasswordInput
-                  label="Confirm New Password"
-                  name="confirm_password"
-                  placeholder="Re-enter new password"
-                  value={formData.confirm_password}
-                  onChange={handleChange}
-                  error={fieldErrors.confirm_password}
-                />
-
-
-                {/* General error */}
-                {error && (
-                  <div
-                    role="alert"
-                    className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600"
-                  >
-                    {error}
-                  </div>
-                )}
-
-
-                {/* Submit button */}
-                <div className="border-t border-gray-100 pt-5">
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full rounded-lg bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                  >
-                    {loading ? "Updating..." : "Update Password"}
-                  </button>
-
-                </div>
-
-              </form>
-
+          {/* General error */}
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600"
+            >
+              {error}
             </div>
+          )}
 
-          </main>
 
-        </div>
+          {/* Submit button */}
+          <div className="border-t border-gray-100 pt-5">
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {loading ? "Updating..." : "Update Password"}
+            </button>
+
+          </div>
+
+        </form>
 
       </div>
 
-    </div>
+    </AccountLayout>
   );
 };
 
